@@ -70,6 +70,8 @@ app.post('/sign-up', async (req, res) => {
     }
 
     // Insert data
+    const trx = await db.transaction();
+
     try {
         var data = await db("Users").insert([
             {
@@ -82,6 +84,8 @@ app.post('/sign-up', async (req, res) => {
             }
         ]);
 
+        await trx.commit();
+
         var new_data = [];
         new_data.push({
             id: data[0],
@@ -93,6 +97,7 @@ app.post('/sign-up', async (req, res) => {
         res.status(201).json(new_data)
 
     } catch (err) {
+        await trx.rollback();
         res.status(500).send(err);
     }
 })
@@ -115,6 +120,9 @@ app.post('/sign-in', async (req, res) => {
             res.status(400).json(result.errors);
         }
     }
+
+    // Transaction
+    const trx = await db.transaction();
 
     try {
         // Get and Check user
@@ -149,6 +157,7 @@ app.post('/sign-in', async (req, res) => {
                         updatedAt: moment().format('YYYY-MM-DD hh:mm:ss')
                     }
                 ]);
+                await trx.commit();
 
                 // Add Response
                 var response = []
@@ -164,23 +173,26 @@ app.post('/sign-in', async (req, res) => {
         });
 
     } catch (err) {
+        await trx.rollback();
         res.status(500).send(err);
     }
 })
 
 app.post('/sign-out', async (req, res) => {
-
+    const trx = await db.transaction();
     try {
         if (req.auth.email !== undefined) {
             // Remove all tokens
             var user = await db('Users').where({'email' : req.auth.email}).first();
             if (user) {
                 await db('Tokens').where('userId', user.id).del();
+                await trx.commit();
                 res.sendStatus(204);
             }
         }
 
     } catch (err) {
+        await trx.rollback();
         res.status(500).send(err);
     }
 })
@@ -193,6 +205,7 @@ app.post('/refresh-token', async (req, res) => {
     }
 
     var tokenInfo = await db('Tokens').where({'refreshToken' : req.body.refreshToken}).first();
+    const trx = await db.transaction();
     try {
         if (tokenInfo) {
 
@@ -206,6 +219,7 @@ app.post('/refresh-token', async (req, res) => {
                     updatedAt: moment().format('YYYY-MM-DD hh:mm:ss')
                 }
             ).where('id', tokenInfo.id);
+            await trx.commit();
 
             // Add Response
             var response = []
@@ -222,6 +236,7 @@ app.post('/refresh-token', async (req, res) => {
         }
 
     } catch (err) {
+        await trx.rollback();
         res.status(500).send(err);
     }
 })
