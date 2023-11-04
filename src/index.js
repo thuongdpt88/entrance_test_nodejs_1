@@ -73,7 +73,7 @@ app.post('/sign-up', async (req, res) => {
     const trx = await db.transaction();
 
     try {
-        var data = await db("Users").insert([
+        var data = await trx("Users").insert([
             {
                 firstName: firstName,
                 lastName: lastName,
@@ -148,7 +148,7 @@ app.post('/sign-in', async (req, res) => {
                 const {token, refreshToken} = generateToken(email, password)
 
                 // Save refreshToken
-                await db("Tokens").insert([
+                await trx("Tokens").insert([
                     {
                         userId: e.id,
                         refreshToken: refreshToken,
@@ -185,11 +185,13 @@ app.post('/sign-out', async (req, res) => {
             // Remove all tokens
             var user = await db('Users').where({'email' : req.auth.email}).first();
             if (user) {
-                await db('Tokens').where('userId', user.id).del();
+                await trx('Tokens').where('userId', user.id).del();
                 await trx.commit();
                 res.sendStatus(204);
             }
         }
+
+        res.status(204).send("Nothing to do");
 
     } catch (err) {
         await trx.rollback();
@@ -213,7 +215,7 @@ app.post('/refresh-token', async (req, res) => {
             const {token, refreshToken} = generateToken(req.auth.email, req.auth.password)
 
             // Update DB
-            await db("Tokens").update(
+            await trx("Tokens").update(
                 {
                     refreshToken: refreshToken,
                     updatedAt: moment().format('YYYY-MM-DD hh:mm:ss')
